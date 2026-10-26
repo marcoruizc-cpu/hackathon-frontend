@@ -1,0 +1,323 @@
+/* =====================================================================
+   Sector Story Engine — CSS propio (sin GSAP/Motion/Scrollama/AOS/Lenis)
+   1) Variables registradas con @property para poder transicionarlas.
+   2) Escenas por clima construidas solo con gradientes (sin imagenes oficiales).
+   3) CSS Scroll-driven Animations dentro de @supports + fallback JS.
+   4) prefers-reduced-motion desactiva todo movimiento.
+   ===================================================================== */
+
+@property --stability {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 50;
+}
+@property --energy {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 50;
+}
+@property --stage {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #22d3ee;
+}
+
+/* ---------- View Transition compartida (tarjeta <-> cabecera) ---------- */
+.vt-shared {
+  view-transition-name: var(--vt);
+}
+
+/* ---------- Paletas por clima (thumb, hero y escena) ---------- */
+[data-scene="pixel_forest"] { --scene-a: #052e16; --scene-b: #166534; --scene-c: #4ade80; }
+[data-scene="neon_cave"] { --scene-a: #0f0524; --scene-b: #4c1d95; --scene-c: #e879f9; }
+[data-scene="cloud_aquarium"] { --scene-a: #082f49; --scene-b: #0369a1; --scene-c: #7dd3fc; }
+[data-scene="retro_arcade"] { --scene-a: #1e1b4b; --scene-b: #9d174d; --scene-c: #fbbf24; }
+
+.story-thumb,
+.story-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--scene-c, #22d3ee) 45%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--scene-a, #0f172a), var(--scene-b, #1e293b));
+}
+.story-thumb { height: 7rem; }
+.story-hero { border-radius: 1rem; min-height: 9rem; }
+
+/* ---------- Layout ---------- */
+.story-track {
+  position: relative;
+  view-timeline-name: --story;
+  view-timeline-axis: block;
+}
+
+.story-progress {
+  position: sticky;
+  top: 3.5rem; /* bajo la barra de navegacion */
+  z-index: 20;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0;
+  background: color-mix(in srgb, #020617 88%, transparent);
+  backdrop-filter: blur(6px);
+}
+.story-progress-track {
+  margin-top: 0.4rem;
+  height: 6px;
+  border-radius: 999px;
+  background: #1e293b;
+  overflow: hidden;
+}
+.story-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #a78bfa);
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0)); /* FALLBACK JS */
+}
+
+.story-step {
+  display: flex;
+  width: 100%;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+.story-step.is-done { border-color: color-mix(in srgb, var(--accent) 50%, #334155); color: #cbd5e1; }
+.story-step.is-active { background: var(--accent); border-color: var(--accent); color: #020617; font-weight: 700; }
+
+.story-layout {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+.story-visual-slot {
+  position: sticky;
+  top: 9.5rem; /* nav + barra de progreso */
+  z-index: 10;
+  height: 30vh;
+}
+.story-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.story-stage-slot {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+}
+.story-stage {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid #1e293b;
+  border-left: 4px solid #334155;
+  background: color-mix(in srgb, #0f172a 92%, transparent);
+  padding: 1.5rem;
+  opacity: 0.72; /* nunca 0: el texto inactivo sigue legible */
+  transition: opacity 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+.story-stage.is-active {
+  opacity: 1;
+  border-left-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+@media (min-width: 1024px) {
+  .story-layout { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 3rem; }
+  .story-visual-slot { top: 9.5rem; height: calc(100vh - 11rem); }
+  .story-stage-slot { min-height: 85vh; }
+}
+
+/* ---------- Escena persistente ---------- */
+.story-visual {
+  position: relative;
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, #1e293b);
+  isolation: isolate;
+  transition: --stability 0.7s ease, --energy 0.7s ease, --stage 0.9s ease, --accent 0.7s ease, border-color 0.7s ease;
+}
+.story-visual > div,
+.scene-core > * { position: absolute; }
+
+.scene-sky {
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 110%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--scene-a), var(--scene-b));
+  filter: saturate(calc(0.6 + var(--energy) / 125));
+}
+.scene-far {
+  inset: -10% -40% 30% -10%;
+  opacity: 0.55;
+  transform: translateX(calc(var(--stage) * -4%));
+}
+.scene-near {
+  inset: 55% -30% -5% -10%;
+  transform: translateX(calc(var(--stage) * -2.5%));
+}
+.scene-core {
+  left: 50%;
+  top: 40%;
+  width: min(48%, 15rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+.scene-ring {
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--stability) * 1%), rgb(255 255 255 / 0.08) 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%);
+  mask: radial-gradient(circle, transparent 62%, #000 63%);
+}
+.scene-orb {
+  left: 50%;
+  top: 50%;
+  width: calc(30% + var(--energy) * 0.35%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 30%, #fff, var(--accent) 45%, color-mix(in srgb, var(--accent) 30%, #000) 100%);
+  box-shadow: 0 0 calc(var(--energy) * 0.6px) var(--accent);
+}
+.scene-alerts { inset: 0; margin: 0; padding: 0; list-style: none; }
+/* Cada alerta es un "radio" girado; el punto se dibuja en su extremo (sobre el anillo). */
+.scene-alerts li {
+  position: absolute;
+  inset: 0;
+}
+.scene-alerts li::before {
+  content: "";
+  position: absolute;
+  left: calc(50% - 4px);
+  top: -7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fb7185;
+  box-shadow: 0 0 8px #fb7185;
+}
+
+.scene-panel {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 2;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  background: rgb(2 6 23 / 0.72);
+  backdrop-filter: blur(6px);
+}
+.scene-metric { border-radius: 0.6rem; background: rgb(255 255 255 / 0.06); padding: 0.35rem; }
+.scene-metric dt { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgb(255 255 255 / 0.65); }
+.scene-metric dd { margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1023px) {
+  /* Mobile: misma experiencia, escena mas baja y panel compacto. */
+  .scene-panel { left: 0.5rem; right: 0.5rem; bottom: 0.5rem; padding: 0.5rem 0.65rem; }
+  .scene-panel .scene-title { display: none; }
+  .scene-panel dl { margin-top: 0.35rem; }
+  .scene-metric dd { font-size: 0.95rem; }
+  .scene-core { top: 34%; width: min(34%, 8rem); }
+}
+
+/* Capas por clima */
+[data-scene="pixel_forest"] .scene-far {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 22px, color-mix(in srgb, var(--scene-c) 40%, transparent) 22px 44px) bottom / 100% 40% no-repeat;
+}
+[data-scene="pixel_forest"] .scene-near {
+  background:
+    repeating-linear-gradient(90deg, #14532d 0 16px, #166534 16px 32px, #15803d 32px 48px),
+    #052e16;
+  clip-path: polygon(0 40%, 6% 40%, 6% 10%, 12% 10%, 12% 40%, 20% 40%, 20% 0, 28% 0, 28% 40%, 40% 40%, 40% 20%, 48% 20%, 48% 40%, 60% 40%, 60% 5%, 68% 5%, 68% 40%, 80% 40%, 80% 15%, 88% 15%, 88% 40%, 100% 40%, 100% 100%, 0 100%);
+}
+[data-scene="neon_cave"] .scene-far {
+  background: repeating-conic-gradient(from 180deg at 50% 0, color-mix(in srgb, var(--scene-c) 35%, transparent) 0 8deg, transparent 8deg 30deg);
+}
+[data-scene="neon_cave"] .scene-near {
+  background: linear-gradient(transparent 0 45%, var(--scene-c) 45% 47%, transparent 47%), #0f0524;
+  clip-path: polygon(0 30%, 10% 10%, 22% 35%, 35% 5%, 50% 30%, 63% 0, 78% 28%, 90% 8%, 100% 25%, 100% 100%, 0 100%);
+}
+[data-scene="cloud_aquarium"] .scene-far {
+  background:
+    radial-gradient(circle at 15% 40%, rgb(255 255 255 / 0.35) 0 14px, transparent 15px),
+    radial-gradient(circle at 45% 70%, rgb(255 255 255 / 0.25) 0 9px, transparent 10px),
+    radial-gradient(circle at 75% 30%, rgb(255 255 255 / 0.3) 0 18px, transparent 19px),
+    radial-gradient(circle at 90% 75%, rgb(255 255 255 / 0.2) 0 7px, transparent 8px);
+}
+[data-scene="cloud_aquarium"] .scene-near {
+  background: radial-gradient(ellipse at 50% 0, #e0f2fe 0 30%, transparent 31%) 0 0 / 30% 60% repeat-x, #0c4a6e;
+}
+[data-scene="retro_arcade"] .scene-far {
+  background: radial-gradient(circle at 70% 30%, var(--scene-c) 0 12%, transparent 13%);
+}
+[data-scene="retro_arcade"] .scene-near {
+  inset: 50% -40% -20% -40%;
+  background:
+    linear-gradient(color-mix(in srgb, var(--accent) 80%, transparent) 2px, transparent 2px) 0 0 / 100% 28px,
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 80%, transparent) 2px, transparent 2px) 0 0 / 40px 100%,
+    #1e1b4b;
+  transform: perspective(260px) rotateX(58deg) translateX(calc(var(--stage) * -2.5%));
+}
+
+/* ---------- Movimiento (solo si el usuario NO pidio reduced-motion) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .scene-alerts li { animation: alert-pulse 1.6s ease-in-out infinite; }
+  .scene-orb { animation: orb-breathe 4s ease-in-out infinite; }
+
+  /* CSS Scroll-driven Animations con soporte: la barra y las etapas siguen el scroll real. */
+  @supports (animation-timeline: view()) {
+    .story-progress-bar {
+      animation: story-progress linear both;
+      animation-timeline: --story;
+      animation-range: contain 0% contain 100%;
+    }
+    /* Solo se anima "translate": la opacidad la sigue controlando .is-active. */
+    .story-stage {
+      animation: stage-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 35%;
+    }
+  }
+}
+
+/* Reduced motion: sin animaciones ni transiciones; todo el contenido queda visible y estatico. */
+@media (prefers-reduced-motion: reduce) {
+  .story-visual,
+  .story-stage,
+  .story-step { transition: none; }
+  .scene-alerts li,
+  .scene-orb { animation: none; }
+  .scene-far,
+  .scene-near { transform: none; }
+  [data-scene="retro_arcade"] .scene-near { transform: perspective(260px) rotateX(58deg); }
+}
+
+@keyframes story-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes stage-reveal {
+  from { translate: 0 32px; }
+  to { translate: 0 0; }
+}
+@keyframes alert-pulse {
+  50% { opacity: 0.35; }
+}
+@keyframes orb-breathe {
+  50% { scale: 1.06; }
+}
